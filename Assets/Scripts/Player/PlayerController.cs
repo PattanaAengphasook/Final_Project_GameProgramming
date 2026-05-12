@@ -1,3 +1,4 @@
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -30,6 +31,9 @@ public class PlayerController : MonoBehaviour
     [Header("Game State and UI")]
     public bool hasKey = false;
     [SerializeField] private GameUIManager uiManager;
+
+    [Header("Enemy Interaction")]
+    [SerializeField] private float bounceForce = 12f; // แรงดีดตัวเมื่อกระโดดทับศัตรู
 
     void Start()
     {
@@ -111,6 +115,26 @@ public class PlayerController : MonoBehaviour
         isGliding = value.isPressed;
     }
 
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        //Check Enemy
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            //Check if player is falling and above the enemy
+            if (rb.linearVelocity.y < -0.1f && transform.position.y > collision.transform.position.y + 0.5f)
+            {
+                Destroy(collision.gameObject); // Destroy the enemy
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, bounceForce); // Bounce the player up
+            }
+            else
+            {
+                Die(); // Player dies if colliding with enemy from the side or below
+            }
+        }
+    }
+
+    
+
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.CompareTag("Key"))
@@ -135,7 +159,17 @@ public class PlayerController : MonoBehaviour
 
     private void Die()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        if (uiManager != null)
+        {
+            uiManager.ShowGameOverUI(); // เรียกฟังก์ชันแสดงหน้าจอ Game Over
+            this.enabled = false; // ปิดการควบคุมตัวละคร
+            rb.linearVelocity = Vector2.zero;
+        }
+        else
+        {
+            // ถ้าไม่มี UI Manager ให้รีโหลดฉากปัจจุบันเป็นการง่ายๆ
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
     }
 
     private void OnDrawGizmos()

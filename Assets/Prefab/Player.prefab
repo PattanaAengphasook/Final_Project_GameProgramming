@@ -161,6 +161,7 @@ MonoBehaviour:
     m_Bits: 128
   hasKey: 0
   uiManager: {fileID: 0}
+  bounceForce: 12
 --- !u!50 &3928887799010647710
 Rigidbody2D:
   serializedVersion: 5
