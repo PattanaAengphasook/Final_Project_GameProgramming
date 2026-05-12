@@ -12,14 +12,15 @@ public class GameUIManager : MonoBehaviour
     [Header("Game Over UI")]
     public GameObject gameOverPanel;
 
+    [Header("Game Clear UI")]
+    public GameObject gameClearPanel;
+
     private static float timer = 0f;
 
     void Start()
     {
-        if (gameOverPanel != null)
-        {
-            gameOverPanel.SetActive(false);
-        }
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        if (gameClearPanel != null) gameClearPanel.SetActive(false);
 
         //Active Level
         if (levelText != null)
@@ -92,5 +93,13 @@ public class GameUIManager : MonoBehaviour
 
         // ตรง "MainMenu" อย่าลืมแก้ให้ตรงกับชื่อ Scene หน้าเมนูหลักของโปรเจกต์นี้นะครับ
         SceneManager.LoadScene("MainMenu");
+    }
+    public void ShowGameClearUI()
+    {
+        if (gameClearPanel != null)
+        {
+            gameClearPanel.SetActive(true); // เปิดหน้าจอ UI
+            Time.timeScale = 0f;           // หยุดเวลาในเกมทั้งหมด (รวมถึงศัตรูและผู้เล่น)
+        }
     }
 }

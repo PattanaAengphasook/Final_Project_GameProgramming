@@ -1,4 +1,3 @@
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -36,6 +35,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform attackPoint;
     [SerializeField] private float attackRange = 1f;
     [SerializeField] private LayerMask enemyLayer;
+
+    [Header("Level State")]
+    public bool isFinalLevel = false; // เช็คว่าเป็นเลเวลสุดท้ายหรือเปล่า
 
     void Start()
     {
@@ -156,7 +158,20 @@ public class PlayerController : MonoBehaviour
 
         if (collision.CompareTag("Win"))
         {
-            if (hasKey) SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
+            if (hasKey) 
+            {
+                if (isFinalLevel)
+                {
+                    if (uiManager != null) uiManager.ShowGameClearUI();
+
+                    this.enabled = false;
+                    rb.linearVelocity = Vector2.zero;
+                }
+                else
+                {
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
+                }
+            }
             GameUIManager.ResetTimer();
         }
     }
