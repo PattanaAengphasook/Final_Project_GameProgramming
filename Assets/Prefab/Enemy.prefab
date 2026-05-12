@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6082607263106070131}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: EdgeCheck
   m_TagString: Untagged
   m_Icon: {fileID: 3936346786652291628, guid: 0000000000000000d000000000000000, type: 0}
@@ -43,7 +43,7 @@ GameObject:
   - component: {fileID: 7554019150642533899}
   - component: {fileID: 7182344843372861004}
   - component: {fileID: -444832626150715381}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Enemy
   m_TagString: Enemy
   m_Icon: {fileID: 0}
@@ -159,7 +159,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3299642771227583118}
   - component: {fileID: 2573214017833479817}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Enemy_Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -32,8 +32,10 @@ public class PlayerController : MonoBehaviour
     public bool hasKey = false;
     [SerializeField] private GameUIManager uiManager;
 
-    [Header("Enemy Interaction")]
-    [SerializeField] private float bounceForce = 12f; // แรงดีดตัวเมื่อกระโดดทับศัตรู
+    [Header("Combat Settings")]
+    [SerializeField] private Transform attackPoint;
+    [SerializeField] private float attackRange = 1f;
+    [SerializeField] private LayerMask enemyLayer;
 
     void Start()
     {
@@ -71,7 +73,6 @@ public class PlayerController : MonoBehaviour
                 float targetSpeedX = moveInput.x * currentIceSpeed;
                 float smoothedX = Mathf.Lerp(rb.linearVelocity.x, targetSpeedX, Time.fixedDeltaTime * iceSlipFactor);
                 rb.linearVelocity = new Vector2(smoothedX, rb.linearVelocity.y);
-               
             }
             else
             {
@@ -82,20 +83,14 @@ public class PlayerController : MonoBehaviour
             if (rb.linearVelocity.y < 0 && isGliding && !isGrounded)
             {
                 float velocityY = rb.linearVelocity.y;
-
-                // คํานวณแรงต้านตามสูตร: F_drag = k * v^2
-                // (ใช้ v*v ค่าจะออกมาเป็นบวกเสมอ ซึ่งถูกต้องเพราะแรงต้านต้องมีทิศทางชี้ขึ้น สวนกับความเร็วที่ตกลงมา)
                 float dragForce = dragCoefficient * (velocityY * velocityY);
-
                 rb.AddForce(new Vector2(0, dragForce));
             }
         }
     }
 
-    public void OnMove(InputValue value)
-    {
-        moveInput = value.Get<Vector2>();
-    }
+    // --- ฟังก์ชันรับ Input การเดิน วิ่ง กระโดด ร่อน ---
+    public void OnMove(InputValue value) { moveInput = value.Get<Vector2>(); }
 
     public void OnJump(InputValue value)
     {
@@ -105,35 +100,45 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    public void OnSprint(InputValue value)
-    {
-        isSprinting = value.isPressed;
-    }
+    public void OnSprint(InputValue value) { isSprinting = value.isPressed; }
 
-    public void OnGlide(InputValue value)
-    {
-        isGliding = value.isPressed;
-    }
+    public void OnGlide(InputValue value) { isGliding = value.isPressed; }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    // --- เพิ่มฟังก์ชันรับ Input การโจมตี ---
+    public void OnAttack(InputValue value)
     {
-        //Check Enemy
-        if (collision.gameObject.CompareTag("Enemy"))
+        // ถ้ากดปุ่ม (คลิกซ้าย) ให้เรียกฟังก์ชัน Attack
+        if (value.isPressed)
         {
-            //Check if player is falling and above the enemy
-            if (rb.linearVelocity.y < -0.1f && transform.position.y > collision.transform.position.y + 0.5f)
-            {
-                Destroy(collision.gameObject); // Destroy the enemy
-                rb.linearVelocity = new Vector2(rb.linearVelocity.x, bounceForce); // Bounce the player up
-            }
-            else
-            {
-                Die(); // Player dies if colliding with enemy from the side or below
-            }
+            Attack();
         }
     }
 
-    
+    // --- ลอจิกการตีศัตรู ---
+    private void Attack()
+    {
+        if (attackPoint == null) return;
+
+        // 1. สร้างวงกลมล่องหนเพื่อตรวจจับว่ามีอะไรอยู่ในระยะตีบ้าง (กรองเอาเฉพาะเลเยอร์ศัตรู)
+        Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayer);
+
+        // 2. วนลูปเช็คศัตรูทุกตัวที่โดนวงกลมโจมตี แล้วสั่งทำลายทิ้งให้หมด
+        foreach (Collider2D enemy in hitEnemies)
+        {
+            Destroy(enemy.gameObject);
+            Debug.Log("ฟาดศัตรู " + enemy.name + " ร่วงแล้ว!");
+        }
+    }
+
+    // --- อัปเดตลอจิกการชน ---
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        // ถ้าเดินเอาหน้าไปชนศัตรู (โดยไม่ได้กดตี) = ตายสถานเดียวครับ
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            Die();
+        }
+    }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -141,7 +146,6 @@ public class PlayerController : MonoBehaviour
         {
             hasKey = true;
             Destroy(collision.gameObject);
-
             if (uiManager != null) uiManager.UpdateKeyStatus(true);
         }
 
@@ -161,23 +165,30 @@ public class PlayerController : MonoBehaviour
     {
         if (uiManager != null)
         {
-            uiManager.ShowGameOverUI(); // เรียกฟังก์ชันแสดงหน้าจอ Game Over
-            this.enabled = false; // ปิดการควบคุมตัวละคร
+            uiManager.ShowGameOverUI();
+            this.enabled = false;
             rb.linearVelocity = Vector2.zero;
         }
         else
         {
-            // ถ้าไม่มี UI Manager ให้รีโหลดฉากปัจจุบันเป็นการง่ายๆ
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
     }
 
     private void OnDrawGizmos()
     {
+        // วาดเส้นสีแดงของที่เช็คพื้น
         if (groundCheck != null)
         {
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
+        }
+
+        // วาดเส้นสีเหลืองบอกระยะโจมตี
+        if (attackPoint != null)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(attackPoint.position, attackRange);
         }
     }
 }

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 12778199000505164}
   - component: {fileID: 3060090409041317089}
   - component: {fileID: 8653415995048767114}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Enemy Fly
   m_TagString: Enemy
   m_Icon: {fileID: 0}
@@ -128,7 +128,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3784841729667504033}
   - component: {fileID: 5734553939036452575}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Enemy_Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -218,7 +218,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5482717444841244033}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: CheckPoint
   m_TagString: Untagged
   m_Icon: {fileID: -964228994112308473, guid: 0000000000000000d000000000000000, type: 0}
