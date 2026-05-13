@@ -1,57 +1,85 @@
 using UnityEngine;
-using System.Collections; // สำคัญ ต้องมีเพื่อใช้ IEnumerator
+using System.Collections;
+using TMPro; // 👈 สำคัญ! ต้องเพิ่มบรรทัดนี้เพื่อเรียกใช้ระบบ Text UI
 
 public class WarpPad : MonoBehaviour
 {
     [Header("Warp Settings")]
     [SerializeField] private Transform destinationPad;
+    [SerializeField] private float warpDelay = 3f;
+
+    [Header("UI Settings")]
+    [SerializeField] private TextMeshProUGUI countdownText; // 👈 ช่องสำหรับใส่ตัวหนังสือ
 
     private bool canWarp = true;
+    private bool isCountingDown = false;
+    private Coroutine warpCoroutine;
+
+    private void Start()
+    {
+        // เริ่มเกมมา ให้ซ่อนข้อความนับถอยหลังไว้ก่อน
+        if (countdownText != null) countdownText.text = "";
+    }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        Debug.Log($"⚠️ มีสิ่งนี้มาเหยียบแท่นวาร์ป: ชื่อ [{collision.gameObject.name}] | Tag ของมันคือ [{collision.tag}]");
-
         if (collision.CompareTag("Player"))
         {
-            if (destinationPad == null)
-            {
-                Debug.LogError("❌ วาร์ปไม่ได้! เพราะลากแท่นปลายทาง (Destination Pad) มาใส่ในช่อง Inspector หรือยัง?");
-                return;
-            }
+            if (destinationPad == null) return; // ถ้าลืมลากแท่นปลายทางมาใส่ ให้หยุดทำงานไปเลย
 
-            if (!canWarp)
+            if (canWarp)
             {
-                Debug.Log("⏳ วาร์ปไม่ได้! แท่นนี้กำลังติดคูลดาวน์พักเหนื่อยอยู่");
-                return;
+                warpCoroutine = StartCoroutine(WarpSequence(collision.transform));
             }
-            StartCoroutine(WarpSequence(collision.transform));
         }
-        /*if (collision.CompareTag("Player") && canWarp && destinationPad != null)
-        {
-            StartCoroutine(WarpSequence(collision.transform));
-        }*/
+    }
 
+    private void OnTriggerExit2D(Collider2D collision)
+    {
+        if (collision.CompareTag("Player") && isCountingDown)
+        {
+            if (warpCoroutine != null)
+            {
+                StopCoroutine(warpCoroutine);
+                canWarp = true;
+                isCountingDown = false;
+
+                // 🚫 ถ้ายกเลิก ลบข้อความทิ้ง
+                if (countdownText != null) countdownText.text = "";
+            }
+        }
     }
 
     private IEnumerator WarpSequence(Transform playerTransform)
     {
         canWarp = false;
+        isCountingDown = true;
+
+        for (int i = (int)warpDelay; i > 0; i--)
+        {
+            // ⏳ อัปเดตตัวเลขโชว์บนหน้าจอ (สามารถแก้คำว่า "Warp in" เป็นคำอื่นได้ตามใจชอบ)
+            if (countdownText != null) countdownText.text = "Warp in " + i.ToString();
+
+            yield return new WaitForSeconds(1f);
+        }
+
+        isCountingDown = false;
+
+        // ✨ วาร์ปเสร็จแล้ว ลบข้อความทิ้ง
+        if (countdownText != null) countdownText.text = "";
+
         WarpPad destScript = destinationPad.GetComponent<WarpPad>();
         if (destScript != null)
         {
             destScript.StartCooldown();
         }
 
-        // ย้ายตัวละคร (ขยับแกน Y ขึ้น 0.5f กันติดพื้น)
         playerTransform.position = new Vector3(destinationPad.position.x, destinationPad.position.y + 0.5f, playerTransform.position.z);
-        Debug.Log("วาร์ปสำเร็จ!");
 
         yield return new WaitForSeconds(0.5f);
         canWarp = true;
     }
 
-    // ฟังก์ชันนี้เปิดไว้ให้แท่นอื่นมาสั่งให้แท่นนี้พักเหนื่อย (คูลดาวน์)
     public void StartCooldown()
     {
         StartCoroutine(CooldownRoutine());
@@ -60,7 +88,7 @@ public class WarpPad : MonoBehaviour
     private IEnumerator CooldownRoutine()
     {
         canWarp = false;
-        yield return new WaitForSeconds(0.5f);
+        yield return new WaitForSeconds(1.5f);
         canWarp = true;
     }
 }

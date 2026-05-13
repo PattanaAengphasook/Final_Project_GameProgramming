@@ -11,9 +11,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpForce = 10f;
     [SerializeField] private float iceSlipFactor = 3f;
 
+    [Header("Dash Settings")]
+    [SerializeField] private float dashSpeed = 15f;
+    [SerializeField] private float dashDuration = 0.2f;
+    [SerializeField] private float dashCooldown = 1f;
+    [SerializeField] private float doubleTapTime = 0.3f;
+
     [Header("Physics: Air Resistance (Glide)")]
-    [SerializeField] private float dragCoefficient = 10f; // ค่า k (สัมประสิทธิ์แรงต้านอากาศ) ปรับให้ร่อนช้าหรือเร็วได้ตรงนี้
-    private bool isGliding; // เช็คว่ากำลังกดปุ่มร่อนอยู่ไหม
+    [SerializeField] private float dragCoefficient = 10f;
 
     [Header("Ground & Ice Check")]
     [SerializeField] private Transform groundCheck;
@@ -21,23 +26,30 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private LayerMask iceLayer;
 
-    private Rigidbody2D rb;
-    private bool isGrounded;
-    private bool isOnIce;
-    private bool isSprinting;
-    private Vector2 moveInput;
-
     [Header("Game State and UI")]
     public bool hasKey = false;
     [SerializeField] private GameUIManager uiManager;
+    public bool isFinalLevel = false;
 
     [Header("Combat Settings")]
     [SerializeField] private Transform attackPoint;
     [SerializeField] private float attackRange = 1f;
     [SerializeField] private LayerMask enemyLayer;
 
-    [Header("Level State")]
-    public bool isFinalLevel = false; // เช็คว่าเป็นเลเวลสุดท้ายหรือเปล่า
+    [Header("State Variables")]
+    private Rigidbody2D rb;
+    private Vector2 moveInput;
+    private bool isGrounded;
+    private bool isOnIce;
+    private bool isSprinting;
+    private bool isGliding;
+
+    [Header("Dash Variables")]
+    private bool isDashing;
+    private float dashTimeLeft;
+    private float dashCooldownTimer;
+    private float lastTapTime;
+    private float lastTapDirection; // 1 = ขวา, -1 = ซ้าย
 
     void Start()
     {
@@ -46,6 +58,31 @@ public class PlayerController : MonoBehaviour
     }
 
     void Update()
+    {
+        CheckSurroundings();
+        UpdateTimers();
+    }
+
+    void FixedUpdate()
+    {
+        if (rb == null) return;
+
+        // ถ้ากำลัง Dash อยู่ ให้ข้ามการเดินปกติไปเลย
+        if (isDashing)
+        {
+            HandleDashPhysics();
+            return;
+        }
+
+        HandleMovement();
+        HandleGlide();
+    }
+
+    // ==========================================
+    // 🧠 LOGIC METHODS (แยกส่วนให้ Clean ขึ้น)
+    // ==========================================
+
+    private void CheckSurroundings()
     {
         if (groundCheck == null) return;
 
@@ -56,47 +93,125 @@ public class PlayerController : MonoBehaviour
         isOnIce = touchIce && !touchGround;
     }
 
-    void FixedUpdate()
+    private void UpdateTimers()
     {
-        if (rb != null)
+        // ลดคูลดาวน์ Dash
+        if (dashCooldownTimer > 0) dashCooldownTimer -= Time.deltaTime;
+
+        // ลดเวลาของสถานะ Dash
+        if (isDashing)
         {
-            // --- 1. Walking And Sprinting ---
-            float currentMoveSpeed = moveSpeed;
-            float currentIceSpeed = iceMoveSpeed;
-
-            if (isSprinting)
+            dashTimeLeft -= Time.deltaTime;
+            if (dashTimeLeft <= 0)
             {
-                currentMoveSpeed *= sprintMultiplier;
-                currentIceSpeed *= sprintMultiplier;
-            }
-
-            if (isOnIce)
-            {
-                float targetSpeedX = moveInput.x * currentIceSpeed;
-                float smoothedX = Mathf.Lerp(rb.linearVelocity.x, targetSpeedX, Time.fixedDeltaTime * iceSlipFactor);
-                rb.linearVelocity = new Vector2(smoothedX, rb.linearVelocity.y);
-            }
-            else
-            {
-                rb.linearVelocity = new Vector2(moveInput.x * currentMoveSpeed, rb.linearVelocity.y);
-            }
-
-            // --- 2. Air Resistance (Glide) ---
-            if (rb.linearVelocity.y < 0 && isGliding && !isGrounded)
-            {
-                float velocityY = rb.linearVelocity.y;
-                float dragForce = dragCoefficient * (velocityY * velocityY);
-                rb.AddForce(new Vector2(0, dragForce));
+                isDashing = false;
+                rb.gravityScale = 1f; // คืนค่าแรงโน้มถ่วงให้กลับมาปกติหลัง Dash เสร็จ
             }
         }
     }
 
-    // --- ฟังก์ชันรับ Input การเดิน วิ่ง กระโดด ร่อน ---
-    public void OnMove(InputValue value) { moveInput = value.Get<Vector2>(); }
+    private void HandleMovement()
+    {
+        float currentSpeed = isOnIce ? iceMoveSpeed : moveSpeed;
+        if (isSprinting) currentSpeed *= sprintMultiplier;
+
+        if (isOnIce)
+        {
+            float targetSpeedX = moveInput.x * currentSpeed;
+            float smoothedX = Mathf.Lerp(rb.linearVelocity.x, targetSpeedX, Time.fixedDeltaTime * iceSlipFactor);
+            rb.linearVelocity = new Vector2(smoothedX, rb.linearVelocity.y);
+        }
+        else
+        {
+            rb.linearVelocity = new Vector2(moveInput.x * currentSpeed, rb.linearVelocity.y);
+        }
+    }
+
+    private void HandleGlide()
+    {
+        if (rb.linearVelocity.y < 0 && isGliding && !isGrounded)
+        {
+            float velocityY = rb.linearVelocity.y;
+            float dragForce = dragCoefficient * (velocityY * velocityY);
+            rb.AddForce(new Vector2(0, dragForce));
+        }
+    }
+
+    private void HandleDashPhysics()
+    {
+        // บังคับให้พุ่งไปข้างหน้าตรงๆ แกน Y เป็น 0 เพื่อไม่ให้ร่วงลงพื้นตอนพุ่ง
+        rb.linearVelocity = new Vector2(lastTapDirection * dashSpeed, 0f);
+    }
+
+    private void StartDash(float direction)
+    {
+        isDashing = true;
+        dashTimeLeft = dashDuration;
+        dashCooldownTimer = dashCooldown;
+        rb.gravityScale = 0f; // ปิดแรงโน้มถ่วงชั่วคราวตอนพุ่ง
+
+        // รีเซ็ตความเร็วเดิมทิ้งไปก่อน
+        rb.linearVelocity = Vector2.zero;
+
+        Debug.Log("💨 Dash!");
+    }
+
+    private void Attack()
+    {
+        if (attackPoint == null) return;
+
+        Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayer);
+        foreach (Collider2D enemy in hitEnemies)
+        {
+            Destroy(enemy.gameObject);
+            Debug.Log("ฟาดศัตรู " + enemy.name + " ร่วงแล้ว!");
+        }
+    }
+
+    private void Die()
+    {
+        if (uiManager != null)
+        {
+            uiManager.ShowGameOverUI();
+            this.enabled = false;
+            rb.linearVelocity = Vector2.zero;
+        }
+        else
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+    }
+
+    // ==========================================
+    // 🎮 INPUT METHODS (ใช้ของ New Input System)
+    // ==========================================
+
+    public void OnMove(InputValue value)
+    {
+        Vector2 input = value.Get<Vector2>();
+
+        // ลอจิกตรวจจับการกดปุ่ม 2 ที (Double Tap)
+        if (input.x != 0 && moveInput.x == 0) // แปลว่าเพิ่งกดปุ่มลูกศรลงไป
+        {
+            float currentDirection = Mathf.Sign(input.x); // หาทิศทาง (1 คือขวา, -1 คือซ้าย)
+
+            // เช็คว่า: เวลากดห่างจากครั้งที่แล้วไม่เกินที่กำหนด? + ทิศทางเดียวกัน? + คูลดาวน์เสร็จหรือยัง?
+            if (Time.time - lastTapTime < doubleTapTime && currentDirection == lastTapDirection && dashCooldownTimer <= 0)
+            {
+                StartDash(currentDirection);
+            }
+
+            // บันทึกเวลาและทิศทางของการกดครั้งนี้ไว้เช็ครอบหน้า
+            lastTapTime = Time.time;
+            lastTapDirection = currentDirection;
+        }
+
+        moveInput = input;
+    }
 
     public void OnJump(InputValue value)
     {
-        if (value.isPressed && isGrounded)
+        if (value.isPressed && isGrounded && !isDashing) // ห้ามกระโดดตอนกำลังพุ่ง
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
         }
@@ -106,36 +221,17 @@ public class PlayerController : MonoBehaviour
 
     public void OnGlide(InputValue value) { isGliding = value.isPressed; }
 
-    // --- เพิ่มฟังก์ชันรับ Input การโจมตี ---
     public void OnAttack(InputValue value)
     {
-        // ถ้ากดปุ่ม (คลิกซ้าย) ให้เรียกฟังก์ชัน Attack
-        if (value.isPressed)
-        {
-            Attack();
-        }
+        if (value.isPressed) Attack();
     }
 
-    // --- ลอจิกการตีศัตรู ---
-    private void Attack()
-    {
-        if (attackPoint == null) return;
+    // ==========================================
+    // 💥 COLLISION & TRIGGER METHODS
+    // ==========================================
 
-        // 1. สร้างวงกลมล่องหนเพื่อตรวจจับว่ามีอะไรอยู่ในระยะตีบ้าง (กรองเอาเฉพาะเลเยอร์ศัตรู)
-        Collider2D[] hitEnemies = Physics2D.OverlapCircleAll(attackPoint.position, attackRange, enemyLayer);
-
-        // 2. วนลูปเช็คศัตรูทุกตัวที่โดนวงกลมโจมตี แล้วสั่งทำลายทิ้งให้หมด
-        foreach (Collider2D enemy in hitEnemies)
-        {
-            Destroy(enemy.gameObject);
-            Debug.Log("ฟาดศัตรู " + enemy.name + " ร่วงแล้ว!");
-        }
-    }
-
-    // --- อัปเดตลอจิกการชน ---
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        // ถ้าเดินเอาหน้าไปชนศัตรู (โดยไม่ได้กดตี) = ตายสถานเดียวครับ
         if (collision.gameObject.CompareTag("Enemy"))
         {
             Die();
@@ -158,12 +254,11 @@ public class PlayerController : MonoBehaviour
 
         if (collision.CompareTag("Win"))
         {
-            if (hasKey) 
+            if (hasKey)
             {
                 if (isFinalLevel)
                 {
                     if (uiManager != null) uiManager.ShowGameClearUI();
-
                     this.enabled = false;
                     rb.linearVelocity = Vector2.zero;
                 }
@@ -176,30 +271,14 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void Die()
-    {
-        if (uiManager != null)
-        {
-            uiManager.ShowGameOverUI();
-            this.enabled = false;
-            rb.linearVelocity = Vector2.zero;
-        }
-        else
-        {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        }
-    }
-
     private void OnDrawGizmos()
     {
-        // วาดเส้นสีแดงของที่เช็คพื้น
         if (groundCheck != null)
         {
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
         }
 
-        // วาดเส้นสีเหลืองบอกระยะโจมตี
         if (attackPoint != null)
         {
             Gizmos.color = Color.yellow;
