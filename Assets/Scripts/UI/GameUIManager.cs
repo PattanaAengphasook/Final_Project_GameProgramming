@@ -92,7 +92,7 @@ public class GameUIManager : MonoBehaviour
         ResetTimer();        // รีเซ็ตเวลาทิ้งไปเลย
 
         // ตรง "MainMenu" อย่าลืมแก้ให้ตรงกับชื่อ Scene หน้าเมนูหลักของโปรเจกต์นี้นะครับ
-        SceneManager.LoadScene("MainMenu");
+        SceneManager.LoadScene("Main Menu");
     }
     public void ShowGameClearUI()
     {

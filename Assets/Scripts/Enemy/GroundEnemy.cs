@@ -12,6 +12,7 @@ public class GroundEnemy : MonoBehaviour
     public LayerMask groundLayer;
 
     private bool movingRight = true;
+    private bool canMove = true;
     private Rigidbody2D rb;
 
     void Start()
@@ -21,6 +22,12 @@ public class GroundEnemy : MonoBehaviour
 
     void Update()
     {
+        if (!canMove)
+        {
+            rb.linearVelocity = new Vector2 (0, rb.linearVelocity.y);
+            return;
+        }
+
         rb.linearVelocity = new Vector2((movingRight ? speed : -speed), rb.linearVelocity.y);
 
         RaycastHit2D groundInfo = Physics2D.Raycast(checkPoint.position, Vector2.down, edgeCheckDistance, groundLayer);
@@ -34,6 +41,11 @@ public class GroundEnemy : MonoBehaviour
         }
     }
 
+    public void SetMovement(bool status)
+    {
+        canMove = status;
+        if (!status) new Vector2(0, rb.linearVelocity.y);
+    }
     void Flip()
     {
         movingRight = !movingRight;
