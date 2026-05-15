@@ -9,7 +9,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float iceMoveSpeed = 8f;
     [SerializeField] private float sprintMultiplier = 1.5f;
     [SerializeField] private float jumpForce = 10f;
-    [SerializeField] private float iceSlipFactor = 3f;
+    [SerializeField] private float iceSlipFactor = 0.5f;
 
     [Header("Dash Settings")]
     [SerializeField] private float dashSpeed = 15f;

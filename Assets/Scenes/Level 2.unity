@@ -972,8 +972,12 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 966406867}
     - target: {fileID: 1693238627224012788, guid: 53e1c47c6a6573248826cb59ca695192, type: 3}
+      propertyPath: iceSlipFactor
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 1693238627224012788, guid: 53e1c47c6a6573248826cb59ca695192, type: 3}
       propertyPath: groundLayer.m_Bits
-      value: 192
+      value: 64
       objectReference: {fileID: 0}
     - target: {fileID: 8652507376183970630, guid: 53e1c47c6a6573248826cb59ca695192, type: 3}
       propertyPath: m_LocalPosition.x
