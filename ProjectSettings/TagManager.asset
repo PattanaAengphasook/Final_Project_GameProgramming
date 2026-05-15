@@ -11,6 +11,7 @@ TagManager:
   - Win
   - Ice
   - Enemy
+  - WarpPad
   layers:
   - Default
   - TransparentFX

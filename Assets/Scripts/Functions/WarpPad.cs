@@ -23,7 +23,7 @@ public class WarpPad : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.CompareTag("Player"))
+        if (collision.CompareTag("Player") || collision.CompareTag("Enemy"))
         {
             if (destinationPad == null) return; // ถ้าลืมลากแท่นปลายทางมาใส่ ให้หยุดทำงานไปเลย
 
@@ -36,8 +36,11 @@ public class WarpPad : MonoBehaviour
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        if (collision.CompareTag("Player") && isCountingDown)
+        if (collision.CompareTag("Player") || collision.CompareTag("Enemy") && isCountingDown)
         {
+            GroundEnemy enemy = collision.GetComponent<GroundEnemy>();
+            if (enemy != null) enemy.SetMovement(true);
+
             if (warpCoroutine != null)
             {
                 StopCoroutine(warpCoroutine);
@@ -50,31 +53,29 @@ public class WarpPad : MonoBehaviour
         }
     }
 
-    private IEnumerator WarpSequence(Transform playerTransform)
+    private IEnumerator WarpSequence(Transform targetTransform) 
     {
         canWarp = false;
         isCountingDown = true;
 
+        GroundEnemy enemy = targetTransform.GetComponent<GroundEnemy>();
+        if (enemy != null) enemy.SetMovement(false);
+
         for (int i = (int)warpDelay; i > 0; i--)
         {
-            // ⏳ อัปเดตตัวเลขโชว์บนหน้าจอ (สามารถแก้คำว่า "Warp in" เป็นคำอื่นได้ตามใจชอบ)
             if (countdownText != null) countdownText.text = "Warp in " + i.ToString();
-
             yield return new WaitForSeconds(1f);
         }
 
         isCountingDown = false;
-
-        // ✨ วาร์ปเสร็จแล้ว ลบข้อความทิ้ง
         if (countdownText != null) countdownText.text = "";
 
-        WarpPad destScript = destinationPad.GetComponent<WarpPad>();
-        if (destScript != null)
-        {
-            destScript.StartCooldown();
-        }
+        targetTransform.position = new Vector3(destinationPad.position.x, destinationPad.position.y + 0.5f, targetTransform.position.z);
 
-        playerTransform.position = new Vector3(destinationPad.position.x, destinationPad.position.y + 0.5f, playerTransform.position.z);
+        if (enemy != null) enemy.SetMovement(true);
+
+        WarpPad destScript = destinationPad.GetComponent<WarpPad>();
+        if (destScript != null) destScript.StartCooldown();
 
         yield return new WaitForSeconds(0.5f);
         canWarp = true;
